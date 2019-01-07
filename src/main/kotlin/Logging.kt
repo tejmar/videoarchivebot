@@ -8,9 +8,7 @@ import therealfarfetchd.videoarchivebot.LogType.INFO
 import therealfarfetchd.videoarchivebot.LogType.WARN
 import java.nio.file.Files
 import java.nio.file.StandardOpenOption
-import java.time.LocalDateTime
-import java.time.ZoneId
-import java.time.temporal.ChronoField
+import java.time.Instant
 import java.util.concurrent.locks.ReentrantLock
 
 val httpLogger = SimpleHttpLogger(out = LogAdapter)
@@ -75,22 +73,11 @@ object Logger {
 
   @Suppress("LocalVariableName")
   private fun getPrefix(type: LogType): String {
-    val now = LocalDateTime.now(ZoneId.systemDefault())
-
-    val YYYY = now[ChronoField.YEAR]
-    val MM = now[ChronoField.MONTH_OF_YEAR].align()
-    val DD = now[ChronoField.DAY_OF_MONTH].align()
-    val hh = now[ChronoField.CLOCK_HOUR_OF_DAY].align()
-    val mm = now[ChronoField.MINUTE_OF_HOUR].align()
-    val ss = now[ChronoField.SECOND_OF_MINUTE].align()
+    val now = Instant.now().format()
 
     val lt = type.name.padEnd(4)
 
-    return "[$YYYY-$MM-$DD $hh:$mm:$ss|$lt] "
-  }
-
-  private fun Int.align(n: Int = 2): String {
-    return this.toString().padStart(n, '0')
+    return "[$now|$lt] "
   }
 
 }

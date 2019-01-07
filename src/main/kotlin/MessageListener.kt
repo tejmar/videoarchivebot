@@ -4,6 +4,7 @@ import net.dean.jraw.models.Message
 import net.dean.jraw.references.SubmissionReference
 import therealfarfetchd.videoarchivebot.Result.Err
 import therealfarfetchd.videoarchivebot.Result.Ok
+import java.time.Instant
 
 val postRefRegex = Regex("(https?://(\\w+\\.)?reddit\\.com/+(r/+\\w+/+)?|/?r/+\\w+/+)(comments/+)?(\\w+)(/+\\S*)?")
 
@@ -26,13 +27,13 @@ fun startMessageListener() = task("Message Listener") {
                     when (val url = provideFile(post.id)) {
                       is Ok -> {
                         val expiresIn = Upload.linkTime[post.id]?.let { it - utime() }
-                        val expiresInText = expiresIn?.let { " ^(link expires in $it seconds)" }.orEmpty()
+                        val expiresInText = expiresIn?.let { " ^(link expires in ${formatDurationRough(it)})" }.orEmpty()
 
                         """Post: [${v.title}](https://reddit.com/${v.id}) in /r/${v.subreddit}
                           |Author: ${v.author}
                           |**Archived video**: ${url.value}$expiresInText
                           |Original link: ${v.url}
-                          |Archived at ${v.archiveTime} (showing an actual date here is WIP, haha)
+                          |Archived at ${Instant.ofEpochSecond(v.archiveTime).formatUTC()} (UTC)
                         """.trimMargin()
                       }
                       is Err -> {

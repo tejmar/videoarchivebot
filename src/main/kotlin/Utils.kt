@@ -9,10 +9,6 @@ import java.util.concurrent.locks.Lock
 import kotlin.reflect.KMutableProperty0
 import kotlin.reflect.KProperty0
 
-fun sleep(ms: Long) = Thread.sleep(ms)
-fun utimem() = System.currentTimeMillis()
-fun utime() = utimem() / 1000
-
 var <T> KMutableProperty0<T>.value: T
   inline get() = get()
   inline set(value) = set(value)

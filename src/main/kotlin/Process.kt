@@ -54,7 +54,7 @@ class Process(private val p: JProcess) {
     val b = str.bufferedReader()
     val arr = CharArray(256)
     do {
-      val stmp = utimem()
+      val stmp = System.nanoTime()
       val len = b.read(arr)
       if (len > 0)
         dest.value += stmp to String(arr, 0, len)

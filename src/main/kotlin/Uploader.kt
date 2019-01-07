@@ -19,23 +19,24 @@ fun provideFile(postID: String): Result<URL, UploadError> {
 
   Upload.cachedLinks[postID]?.also { return Ok(URL(it)) }
 
-  val d = getArchiveData(postID).mapErr(::ArchiveError)
-  if (d is Err) return d
-  d as Ok
-
-  val video = archiveDir.resolve("by-id").resolve(postID).resolve(d.value.fileName)
-  if (!Files.exists(video)) return Err(MissingFile)
-
-  return when (val result = upload(video)) {
+  return when(val d = getArchiveData(postID)) {
     is Ok -> {
-      Upload.cachedLinks[postID] = result.value.url.toString()
+      val video = archiveDir.resolve("by-id").resolve(postID).resolve(d.value.fileName)
+      if (!Files.exists(video)) return Err(MissingFile)
 
-      if (result.value.duration > 0)
-        Upload.linkTime[postID] = utime() + result.value.duration
+      when (val result = upload(video)) {
+        is Ok -> {
+          Upload.cachedLinks[postID] = result.value.url.toString()
 
-      Ok(result.value.url)
+          if (result.value.duration > 0)
+            Upload.linkTime[postID] = utime() + result.value.duration
+
+          Ok(result.value.url)
+        }
+        is Err -> result
+      }
     }
-    is Err -> result
+    is Err -> Err(ArchiveError(d.error))
   }
 }
 

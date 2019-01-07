@@ -151,7 +151,7 @@ private fun archive(post: Submission, video: Path) {
   Files.writeString(postDir.resolve("post.cfg"),
     """; Post: ${post.title}
       |; Submitted by ${post.author}
-      |; Archived at ${Instant.now()}
+      |; Archived at ${Instant.now().format()}
       |
       |post_title ${esc(post.title)}
       |post_author ${esc(post.author)}
