@@ -39,8 +39,12 @@ val cmd = CommandSys(configDir,
     shutdown()
   }
 
-  addCommand("test") {
+  addCommand("get_link") {
     Logger.info("%s", provideFile(it[0]))
+  }
+
+  addCommand("archive") {
+    Reddit { r -> scheduleArchival(r.submission(it[0]).inspect()) { Logger.info("%s", it) } }
   }
 
   addCommand("lookup") {
