@@ -11,11 +11,14 @@ object Content : ValueStore {
   var siteFilterMode: FilterMode = BLOCK
   val siteFilter: MutableSet<String> = mutableSetOf()
 
+  var downloadTimeout: Long = 5 * 60
+
   override fun init(ctx: ValueStoreInit) {
     ctx.addString("dl_handler_default", this::defaultHandler)
     ctx.addMap("dl_handler", this::customHandlers, { it }, { it }, { it.toLowerCase() }, { it })
     ctx.addCollection("dl_site_filter", this::siteFilter, { it }, { it })
     ctx.addCustom("dl_site_filter_mode", this::siteFilterMode, FilterMode.Companion::fromString, { it.name.toLowerCase(Locale.ROOT) })
+    ctx.addLong("dl_timeout", this::downloadTimeout)
   }
 
   override fun getDesc(prop: String) = when (prop) {
@@ -23,6 +26,7 @@ object Content : ValueStore {
     "dl_handler" -> "A list of custom download handlers, by domain."
     "dl_site_filter" -> "The download sites that archiving videos should be allowed/blocked from, depending on the mode."
     "dl_site_filter_mode" -> "The filtering mode for download sites."
+    "dl_timeout" -> "How long, in seconds, the download can take before it gets aborted."
     else -> null
   }
 

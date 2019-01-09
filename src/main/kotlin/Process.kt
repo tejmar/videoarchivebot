@@ -2,6 +2,7 @@ package therealfarfetchd.videoarchivebot
 
 import java.io.IOException
 import java.io.InputStream
+import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 import kotlin.reflect.KMutableProperty0
@@ -73,10 +74,11 @@ class Process(private val p: JProcess) {
   }
 }
 
-fun exec(vararg args: String): Process? {
+fun exec(vararg args: String, dir: Path? = null): Process? {
   return try {
     val proc = ProcessBuilder()
       .command(*args)
+      .let { pb -> dir?.let { pb.directory(it.toFile()) } ?: pb }
       .start()
     Process(proc)
   } catch (e: IOException) {
@@ -84,10 +86,11 @@ fun exec(vararg args: String): Process? {
   }
 }
 
-fun execSimple(vararg args: String): Int {
+fun execSimple(vararg args: String, dir: Path? = null): Int {
   return try {
     val proc = ProcessBuilder()
       .command(*args)
+      .let { pb -> dir?.let { pb.directory(it.toFile()) } ?: pb }
       .start()
     proc.waitFor()
   } catch (e: IOException) {

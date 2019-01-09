@@ -1,5 +1,12 @@
 package therealfarfetchd.videoarchivebot
 
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import therealfarfetchd.videoarchivebot.newshit.cliInput
+import therealfarfetchd.videoarchivebot.newshit.commandProcessor
+import therealfarfetchd.videoarchivebot.newshit.downloader
+import therealfarfetchd.videoarchivebot.newshit.redditListener
 import java.nio.file.Paths
 import kotlin.concurrent.thread
 import kotlin.system.exitProcess
@@ -8,10 +15,19 @@ var running = true; private set
 
 val dataDir = Paths.get("data")
 
-fun main() {
+fun main() = runBlocking {
   cmd
 
-  runInputLoop()
+  GlobalScope.launch {
+    val cmdProc = commandProcessor()
+    val input = cliInput(cmdProc)
+
+    val pms = redditListener()
+    val downloader = downloader()
+
+
+  }
+
   startWatcher()
   startArchiver()
   startMessageListener()
@@ -19,16 +35,6 @@ fun main() {
   Runtime.getRuntime().addShutdownHook(thread(start = false) { shutdown(wait = true) })
 
   Reddit.tryLogin()
-}
-
-fun runInputLoop() = task("Input") {
-  while (true) {
-    val line = readLine() ?: return@task
-
-    lock {
-      cmd.exec(line)
-    }
-  }
 }
 
 fun shutdown(wait: Boolean = false) {

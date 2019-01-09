@@ -9,6 +9,8 @@ version = "1.0.0"
 
 tasks.withType<KotlinCompile> {
   kotlinOptions.freeCompilerArgs += "-Xuse-experimental=kotlin.ExperimentalUnsignedTypes"
+  kotlinOptions.freeCompilerArgs += "-Xuse-experimental=kotlinx.coroutines.ExperimentalCoroutinesApi"
+  kotlinOptions.freeCompilerArgs += "-Xuse-experimental=kotlinx.coroutines.ObsoleteCoroutinesApi"
 }
 
 repositories {
@@ -18,6 +20,7 @@ repositories {
 
 dependencies {
   implementation(kotlin("stdlib-jdk8"))
+  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.1.0")
   implementation(group = "net.dean.jraw", name = "JRAW", version = "1.1.0")
 }
 
