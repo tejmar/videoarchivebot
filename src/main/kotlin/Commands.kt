@@ -54,7 +54,7 @@ val cmd = CommandSys(configDir,
     Reddit { r ->
       val posts = IgnoredPosts.ignore.toList()
       IgnoredPosts.ignore.clear()
-      posts.map { r.submission(it).inspect() }.forEach(::scheduleArchival)
+      posts.map { r.submission(it).inspect() }.forEach { scheduleArchival(it) }
     }
   }
 

@@ -1,6 +1,12 @@
 package therealfarfetchd.videoarchivebot
 
 import net.dean.jraw.models.Submission
+import therealfarfetchd.videoarchivebot.ArchivalResult.AlreadyArchived
+import therealfarfetchd.videoarchivebot.ArchivalResult.ArchiveError
+import therealfarfetchd.videoarchivebot.ArchivalResult.Archived
+import therealfarfetchd.videoarchivebot.ArchivalResult.FilteredSub
+import therealfarfetchd.videoarchivebot.ArchivalResult.NoDownload
+import therealfarfetchd.videoarchivebot.ArchivalResult.UnknownError
 import therealfarfetchd.videoarchivebot.ArchiveDataError.InvalidArchive
 import therealfarfetchd.videoarchivebot.ArchiveDataError.MissingArchive
 import therealfarfetchd.videoarchivebot.FilterMode.ALLOW
@@ -17,8 +23,9 @@ import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 import java.time.Instant
 import java.util.concurrent.ConcurrentLinkedQueue
+import kotlin.concurrent.thread
 
-private val queue = ConcurrentLinkedQueue<Submission>()
+private val queue = ConcurrentLinkedQueue<Pair<Submission, (ArchivalResult) -> Unit>>()
 
 private var fileCounter = 0u
 
@@ -49,26 +56,35 @@ fun startArchiver() = task("Archiver") {
 
   while (true) {
     try {
-      val post = queue.poll()
+      val entry = queue.poll()
 
-      if (post == null) {
+      if (entry == null) {
         sleep(5000)
         continue
       }
 
+      val (post, callback) = entry
+
       lock {
         if (isArchived(post)) {
+          callback(AlreadyArchived)
           return@lock
         }
 
-        if (!canDownload(post)) {
-          ignorePost(post)
+        if (!canDownload(post, callback)) {
           return@lock
         }
 
         Logger.log(ARCH, "[%d left] Archiving %s (%s)", queue.size, post.id, post.title)
 
-        download(post)
+        try {
+          val result = download(post)
+          if (result) callback(Archived)
+          else callback(ArchiveError)
+        } catch (e: Exception) {
+          callback(UnknownError)
+          throw e
+        }
       }
     } catch (e: Exception) {
       e.printStackTrace()
@@ -76,8 +92,29 @@ fun startArchiver() = task("Archiver") {
   }
 }
 
-fun scheduleArchival(post: Submission) {
-  queue += post
+enum class ArchivalResult(val success: Boolean) {
+  AlreadyArchived(true),
+  Archived(true),
+  NoDownload(false),
+  FilteredSub(false),
+  ArchiveError(false),
+  UnknownError(false),
+}
+
+fun scheduleArchival(post: Submission, callback: (ArchivalResult) -> Unit = {}) {
+  if (isArchived(post)) {
+    callback(AlreadyArchived)
+    return
+  }
+
+  queue += post to { result ->
+    try {
+      callback(result)
+    } catch (e: Exception) {
+      e.printStackTrace()
+    }
+  }
+
   Logger.log(ARCH, "[%d left] Scheduling archival of %s (%s)", queue.size, post.id, post.title)
 }
 
@@ -101,13 +138,29 @@ private fun download(post: Submission): Boolean {
   val video = workDir.resolve("dl_$i")
   Files.createDirectories(video.parent)
 
-  val dl = execSimple(
+  val dl = exec(
     dlHandler.toAbsolutePath().toFile().toString(),
     post.url,
     video.toAbsolutePath().toFile().toString()
   )
 
-  if (dl != 0 || !Files.exists(video)) {
+  if (dl == null) {
+    Files.deleteIfExists(video)
+    ignorePost(post)
+    return false
+  }
+
+  val t = thread(isDaemon = true) {
+    // download locks up sometimes, so this is what we'll have to do I guess...
+    sleep(60 * 1000L)
+    dl.kill()
+    Logger.err("Timed out (60 seconds) while downloading file '%s'", post.url)
+  }
+
+  dl.waitFor()
+  t.stop()
+
+  if (dl.exitCode != 0 || !Files.exists(video)) {
     Logger.err("Failed to download file '%s'.", post.url)
     Files.deleteIfExists(video)
     ignorePost(post)
@@ -173,10 +226,21 @@ private fun isArchived(post: Submission): Boolean {
   return Files.exists(archiveDir.resolve("by-id").resolve(post.id))
 }
 
-private fun canDownload(post: Submission): Boolean {
-  if (post.id in IgnoredPosts.ignore) return false
+private fun canDownload(post: Submission, callback: (ArchivalResult) -> Unit): Boolean {
+  if (post.id in IgnoredPosts.ignore) {
+    callback(NoDownload)
+    return false
+  }
 
-  if (post.isSelfPost) return false // TODO check for link(s) inside the post text?
+  if (post.subreddit !in Subreddits.watched && (post.subreddit in Subreddits.filter) == (Subreddits.filterMode == FilterMode.ALLOW)) {
+    callback(FilteredSub)
+    return false
+  }
+
+  if (post.isSelfPost) {
+    callback(NoDownload)
+    return false
+  } // TODO check for link(s) inside the post text?
 
   return isDomainAllowed(post.domain)
 }

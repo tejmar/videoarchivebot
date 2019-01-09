@@ -2,6 +2,14 @@ package therealfarfetchd.videoarchivebot
 
 import net.dean.jraw.models.Message
 import net.dean.jraw.references.SubmissionReference
+import therealfarfetchd.videoarchivebot.ArchivalResult.AlreadyArchived
+import therealfarfetchd.videoarchivebot.ArchivalResult.ArchiveError
+import therealfarfetchd.videoarchivebot.ArchivalResult.Archived
+import therealfarfetchd.videoarchivebot.ArchivalResult.FilteredSub
+import therealfarfetchd.videoarchivebot.ArchivalResult.NoDownload
+import therealfarfetchd.videoarchivebot.ArchivalResult.UnknownError
+import therealfarfetchd.videoarchivebot.ArchiveDataError.InvalidArchive
+import therealfarfetchd.videoarchivebot.ArchiveDataError.MissingArchive
 import therealfarfetchd.videoarchivebot.Result.Err
 import therealfarfetchd.videoarchivebot.Result.Ok
 import java.time.Instant
@@ -19,6 +27,15 @@ fun startMessageListener() = task("Message Listener") {
 
             val posts = getPosts(message).distinctBy { it.id }
             if (posts.isNotEmpty()) {
+              val result = mutableMapOf<String, ArchivalResult>()
+
+              posts.forEach { post ->
+                scheduleArchival(post.inspect()) { r ->
+                  result[post.id] = r
+                }
+              }
+
+              while (result.size != posts.size) sleep(500)
 
               val texts = posts.joinToString("\n____________________\n") { post ->
                 when (val data = getArchiveData(post.id)) {
@@ -47,8 +64,18 @@ fun startMessageListener() = task("Message Listener") {
                     }
                   }
                   is Err -> {
+                    val error = when (result.getValue(post.id)) {
+                      NoDownload -> "No media found in post/failed to archive."
+                      FilteredSub -> "Subreddit containing post is not allowed to be archived."
+                      ArchiveError, UnknownError -> "Failed to archive post."
+                      AlreadyArchived, Archived -> when(data.error) {
+                        MissingArchive -> "Missing archive data."
+                        InvalidArchive -> "Invalid archive data."
+                      }
+                    }
+
                     """Post: https://reddit.com/${post.id}
-                      |**Post is not archived (yet) and on-demand archiving is not implemented yet.**
+                      |**$error Contact /u/${LoginData.botProvider} if you think this is incorrect.**
                     """.trimMargin()
                   }
                 }
