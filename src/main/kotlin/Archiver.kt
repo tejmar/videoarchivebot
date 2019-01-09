@@ -151,8 +151,8 @@ private fun download(post: Submission): Boolean {
   }
 
   val t = thread(isDaemon = true) {
-    // download locks up sometimes, so this is what we'll have to do I guess...
-    sleep(60 * 1000L)
+    // download locks up sometimes, so this is what we'll have to do I guess... 5 minutes _should_ be enough =
+    sleep(5 * 60 * 1000L)
     dl.kill()
     Logger.err("Timed out (60 seconds) while downloading file '%s'", post.url)
   }
