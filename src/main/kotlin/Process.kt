@@ -53,12 +53,15 @@ class Process(private val p: JProcess) {
   private fun scan(str: InputStream, dest: KMutableProperty0<List<Pair<Long, String>>>, upd: KMutableProperty0<Boolean>) {
     val b = str.bufferedReader()
     val arr = CharArray(256)
-    do {
-      val stmp = System.nanoTime()
-      val len = b.read(arr)
-      if (len > 0)
-        dest.value += stmp to String(arr, 0, len)
-    } while (len != -1)
+    try {
+      do {
+        val stmp = System.nanoTime()
+        val len = b.read(arr)
+        if (len > 0)
+          dest.value += stmp to String(arr, 0, len)
+      } while (len != -1)
+    } catch (e: IOException) {
+    }
     upd.value = false
   }
 
